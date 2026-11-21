@@ -11,27 +11,17 @@ name: Public builds
 # Triggers are dispatch-only on purpose. A `pull_request` trigger here would let
 # any fork run its own code on the private checkout; that is why it is absent.
 on:
-  repository_dispatch:
-    types: [noto-build]
   workflow_dispatch:
     inputs:
       sha:
         description: Commit in the private repository to build.
         required: true
-      ref:
-        description: Ref name (branch or tag) for the release label.
-        required: false
-        default: main
-      tag:
-        description: Release tag the private workflow will publish.
-        required: false
-        default: latest
 
 permissions:
   contents: read
 
 concurrency:
-  group: noto-builds-${{ github.event.client_payload.sha || inputs.sha }}
+  group: noto-builds-${{ inputs.sha }}
   cancel-in-progress: false
 
 env:
@@ -50,7 +40,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ${{ env.PRIVATE_REPOSITORY }}
-          ref: ${{ github.event.client_payload.sha || inputs.sha }}
+          ref: ${{ inputs.sha }}
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           persist-credentials: false
 
@@ -100,7 +90,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ${{ env.PRIVATE_REPOSITORY }}
-          ref: ${{ github.event.client_payload.sha || inputs.sha }}
+          ref: ${{ inputs.sha }}
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           persist-credentials: false
 
@@ -206,7 +196,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ${{ env.PRIVATE_REPOSITORY }}
-          ref: ${{ github.event.client_payload.sha || inputs.sha }}
+          ref: ${{ inputs.sha }}
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           persist-credentials: false
 
@@ -246,7 +236,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ${{ env.PRIVATE_REPOSITORY }}
-          ref: ${{ github.event.client_payload.sha || inputs.sha }}
+          ref: ${{ inputs.sha }}
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           persist-credentials: false
 
@@ -316,7 +306,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ${{ env.PRIVATE_REPOSITORY }}
-          ref: ${{ github.event.client_payload.sha || inputs.sha }}
+          ref: ${{ inputs.sha }}
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           persist-credentials: false
 
