@@ -1,0 +1,31 @@
+name: Probe permissions
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe PRIVATE_REPO_TOKEN rights
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Probe
+        env:
+          PRIVATE_REPO_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          set -u
+          probe() {
+            local label="$1"; shift
+            local code
+            code=$(curl -s -o /tmp/body -w '%{http_code}' "$@")
+            echo "PROBE $label -> $code"
+            head -c 400 /tmp/body
+            echo
+          }
+          probe repo_permissions https://api.github.com/repos/NOTO-App-TEAM/NOTO \
+            -H "Authorization: Bearer $PRIVATE_REPO_TOKEN" -H "Accept: application/vnd.github+json"
+          probe repository_dispatch https://api.github.com/repos/NOTO-App-TEAM/NOTO/dispatches \
+            -X POST -H "Authorization: Bearer $PRIVATE_REPO_TOKEN" -H "Accept: application/vnd.github+json" \
+            -d '{"event_type":"noto-permissions-probe"}'
