@@ -25,7 +25,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           ATTEMPT: ${{ inputs.attempt }}
-          WORKFLOW: ${{ github.workflow }}
+          WORKFLOW: ${{ github.workflow_ref }}
         run: |
           set -u
           next=$((ATTEMPT + 1))
