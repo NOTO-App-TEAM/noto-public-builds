@@ -1,0 +1,39 @@
+name: Dispatch probe
+
+# Temporary probe for NOTO-97: can this repository trigger a workflow in the
+# private repository? Removed after the check.
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe_value:
+        description: Value to send in the payload.
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe the private repository dispatch
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Try every documented way to reach the private repository
+        env:
+          PRIVATE_REPO_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          set -u
+          probe() {
+            local label="$1"; shift
+            local code
+            code=$(curl -s -o /tmp/body -w '%{http_code}' "$@")
+            echo "PROBE $label -> $code"
+            head -c 250 /tmp/body
+            echo
+          }
+          probe repository_dispatch https://api.github.com/repos/NOTO-App-TEAM/NOTO/dispatches \
+            -X POST -H "Authorization: Bearer $PRIVATE_REPO_TOKEN" -H "Accept: application/vnd.github+json" \
+            -d '{"event_type":"noto-callback-probe","client_payload":{"probe_value":"from-public"}}'
+          probe workflow_dispatch https://api.github.com/repos/NOTO-App-TEAM/NOTO/actions/workflows/callback-probe.yml/dispatches \
+            -X POST -H "Authorization: Bearer $PRIVATE_REPO_TOKEN" -H "Accept: application/vnd.github+json" \
+            -d '{"ref":"main"}'
