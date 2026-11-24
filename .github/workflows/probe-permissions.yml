@@ -21,11 +21,12 @@ jobs:
             local code
             code=$(curl -s -o /tmp/body -w '%{http_code}' "$@")
             echo "PROBE $label -> $code"
-            head -c 400 /tmp/body
+            head -c 300 /tmp/body
             echo
           }
-          probe repo_permissions https://api.github.com/repos/NOTO-App-TEAM/NOTO \
-            -H "Authorization: Bearer $PRIVATE_REPO_TOKEN" -H "Accept: application/vnd.github+json"
-          probe repository_dispatch https://api.github.com/repos/NOTO-App-TEAM/NOTO/dispatches \
+          probe workflow_dispatch https://api.github.com/repos/NOTO-App-TEAM/NOTO/actions/workflows/ci.yml/dispatches \
+            -X POST -H "Authorization: Bearer $PRIVATE_REPO_TOKEN" -H "Accept: application/vnd.github+json" \
+            -d '{"ref":"main","inputs":{"probe":"1"}}'
+          probe repo_dispatch https://api.github.com/repos/NOTO-App-TEAM/NOTO/dispatches \
             -X POST -H "Authorization: Bearer $PRIVATE_REPO_TOKEN" -H "Accept: application/vnd.github+json" \
             -d '{"event_type":"noto-permissions-probe"}'
