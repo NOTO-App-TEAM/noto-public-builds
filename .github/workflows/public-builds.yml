@@ -374,6 +374,9 @@ jobs:
           PUBLIC_RUN_ID: ${{ github.run_id }}
           PRIVATE_SHA: ${{ inputs.sha }}
           PRIVATE_RELEASE_REF: ${{ inputs.release_ref }}
+          # A started workflow dispatch answers 204; anything else is a refusal.
+          CALLBACK_ACCEPTED: '204'
+          ERROR_BODY_LIMIT: '400'
         run: |
           set -eu
           code=$(curl -s -o /tmp/body -w '%{http_code}' -X POST \
@@ -382,9 +385,9 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -d "{\"ref\":\"main\",\"inputs\":{\"sha\":\"$PRIVATE_SHA\",\"public_run_id\":\"$PUBLIC_RUN_ID\",\"release_ref\":\"$PRIVATE_RELEASE_REF\"}}")
           echo "CALLBACK -> $code"
-          if [ "$code" != "204" ]; then
+          if [ "$code" != "$CALLBACK_ACCEPTED" ]; then
             echo "::error::The private repository did not accept the callback (HTTP $code)."
-            head -c 400 /tmp/body
+            head -c "$ERROR_BODY_LIMIT" /tmp/body
             exit 1
           fi
           echo "The private repository was told to collect run $PUBLIC_RUN_ID."
