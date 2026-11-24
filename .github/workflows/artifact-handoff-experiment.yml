@@ -1,0 +1,61 @@
+name: Artifact handoff experiment
+
+# Sandbox experiment: can one workflow download an artifact uploaded by another
+# run of the same repository, using run-id + github-token? (NOTO-97 research)
+
+on:
+  workflow_dispatch:
+    inputs:
+      producer_run_id:
+        description: Run that uploaded the artifact.
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  produce:
+    name: Produce
+    if: inputs.producer_run_id == ''
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Upload marker
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: handoff-marker
+          retention-days: 1
+          path: marker.txt
+          if-no-files-found: error
+      - name: Write marker
+        shell: bash
+        run: echo "produced by $GITHUB_RUN_ID" > marker.txt
+
+  consume:
+    name: Consume
+    if: inputs.producer_run_id != ''
+    runs-on: ubuntu-22.04
+    steps:
+      - name: List artifacts of the producer run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PRODUCER: ${{ inputs.producer_run_id }}
+        run: |
+          set -u
+          echo "RUN-ARTIFACTS:"
+          curl -s "https://api.github.com/repos/$REPO/actions/runs/$PRODUCER/artifacts" \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            | head -c 1200
+          echo
+      - name: Download the artifact of the producer run
+        uses: actions/download-artifact@fa0a91b85d4f404e0e6f4cfc39b03c4ae3d0b8f # v4
+        with:
+          name: handoff-marker
+          path: received
+          run-id: ${{ inputs.producer_run_id }}
+          github-token: ${{ github.token }}
+      - name: Show what arrived
+        shell: bash
+        run: cat received/marker.txt
