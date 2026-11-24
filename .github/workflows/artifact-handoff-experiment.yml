@@ -21,6 +21,9 @@ jobs:
     if: inputs.producer_run_id == ''
     runs-on: ubuntu-22.04
     steps:
+      - name: Write marker
+        shell: bash
+        run: echo "produced by $GITHUB_RUN_ID" > marker.txt
       - name: Upload marker
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -28,9 +31,6 @@ jobs:
           retention-days: 1
           path: marker.txt
           if-no-files-found: error
-      - name: Write marker
-        shell: bash
-        run: echo "produced by $GITHUB_RUN_ID" > marker.txt
 
   consume:
     name: Consume
