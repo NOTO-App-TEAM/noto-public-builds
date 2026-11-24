@@ -1,0 +1,36 @@
+name: Callback probe
+
+# Temporary probe for NOTO-97: can this repository call the private repository
+# back? Removed after the check.
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe_value:
+        description: Value to send in the payload.
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe the private repository dispatch
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Try to start the collecting workflow
+        env:
+          PRIVATE_REPO_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          PRIVATE_REPOSITORY: NOTO-App-TEAM/NOTO
+          PRIVATE_CALLBACK_WORKFLOW: release_collect.yml
+          PROBE_VALUE: ${{ inputs.probe_value }}
+        run: |
+          set -u
+          code=$(curl -s -o /tmp/body -w '%{http_code}' -X POST \
+            "https://api.github.com/repos/$PRIVATE_REPOSITORY/actions/workflows/$PRIVATE_CALLBACK_WORKFLOW/dispatches" \
+            -H "Authorization: Bearer $PRIVATE_REPO_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"ref\":\"main\",\"inputs\":{\"sha\":\"0000000000000000000000000000000000000000\",\"public_run_id\":\"1\",\"release_ref\":\"refs/heads/main\"}}")
+          echo "PROBE callback -> $code"
+          head -c 400 /tmp/body
+          echo

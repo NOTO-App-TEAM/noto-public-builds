@@ -16,6 +16,10 @@ on:
       sha:
         description: Commit in the private repository to build.
         required: true
+      release_ref:
+        description: Ref in the private repository that started the release.
+        required: false
+        default: 'refs/heads/main'
 
 permissions:
   contents: read
@@ -26,6 +30,7 @@ concurrency:
 
 env:
   PRIVATE_REPOSITORY: NOTO-App-TEAM/NOTO
+  PRIVATE_CALLBACK_WORKFLOW: release_collect.yml
   TAURI_CLI_VERSION: '2.11.3'
   CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
@@ -345,3 +350,41 @@ jobs:
             backend/gen/apple/build/**/*.app
             backend/target/release/bundle/ios/*.ipa
           if-no-files-found: error
+
+  # ── Callback into the private repository ────────────────────────────────────
+  # The private repository hands the release over and frees its runner. It
+  # cannot wait here: the builds take 20-40 minutes, and waiting kept one of
+  # the three Windows runners busy for up to 95 minutes while every other job
+  # queued behind it (NOTO-97). This job calls back when the builds are done,
+  # and the private repository collects the artifacts and publishes.
+  #
+  # The callback runs even when a platform failed: the collector decides which
+  # failures block the release (iOS does not) and it needs the failed job logs.
+  callback:
+    name: Call the private repository back
+    needs: [linux, macos, windows-installer, android, ios]
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Start the collecting workflow in the private repository
+        env:
+          PRIVATE_REPO_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          PRIVATE_REPOSITORY: ${{ env.PRIVATE_REPOSITORY }}
+          PRIVATE_CALLBACK_WORKFLOW: ${{ env.PRIVATE_CALLBACK_WORKFLOW }}
+          PUBLIC_RUN_ID: ${{ github.run_id }}
+          PRIVATE_SHA: ${{ inputs.sha }}
+          PRIVATE_RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          set -eu
+          code=$(curl -s -o /tmp/body -w '%{http_code}' -X POST \
+            "https://api.github.com/repos/$PRIVATE_REPOSITORY/actions/workflows/$PRIVATE_CALLBACK_WORKFLOW/dispatches" \
+            -H "Authorization: Bearer $PRIVATE_REPO_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"ref\":\"main\",\"inputs\":{\"sha\":\"$PRIVATE_SHA\",\"public_run_id\":\"$PUBLIC_RUN_ID\",\"release_ref\":\"$PRIVATE_RELEASE_REF\"}}")
+          echo "CALLBACK -> $code"
+          if [ "$code" != "204" ]; then
+            echo "::error::The private repository did not accept the callback (HTTP $code)."
+            head -c 400 /tmp/body
+            exit 1
+          fi
+          echo "The private repository was told to collect run $PUBLIC_RUN_ID."
